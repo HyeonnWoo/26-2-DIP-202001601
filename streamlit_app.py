@@ -6,7 +6,7 @@ from PIL import Image
 import streamlit as st
 
 st.set_page_config(page_title="Image Segmentation App", layout="wide")
-st.title("메디안 필터 + 임계값 + Connected Component 분석")
+st.title("Homework 5 박현우 : Object Counting")
 
 # ---------------------------------------------------------------
 # Sidebar: 입력 및 파라미터
