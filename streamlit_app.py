@@ -6,7 +6,7 @@ from PIL import Image
 import streamlit as st
 
 st.set_page_config(page_title="Image Segmentation App", layout="wide")
-st.title("메디안 필터 + 임계값 + Connected Component 분석")
+st.title("Homework6 박현우 : Object Counting")
 
 # 최상단에 객체 수를 표시할 자리 (결과는 아래에서 계산 후 채움)
 count_placeholder = st.empty()
