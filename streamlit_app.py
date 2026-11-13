@@ -6,7 +6,7 @@ from PIL import Image
 import streamlit as st
 
 st.set_page_config(page_title="Image Segmentation App", layout="wide")
-st.title("Homework 6 : 박현우 Object Counting")
+st.title("메디안 필터 + 임계값 + Connected Component 분석")
 
 # 최상단에 객체 수를 표시할 자리 (결과는 아래에서 계산 후 채움)
 count_placeholder = st.empty()
@@ -18,6 +18,9 @@ st.sidebar.header("설정")
 uploaded = st.sidebar.file_uploader("이미지 업로드", type=["jpg", "jpeg", "png", "bmp", "tif", "tiff"])
 kernel_size = st.sidebar.slider("Median filter 커널 크기 (홀수)", 1, 31, 7, step=2)
 th_val = st.sidebar.slider("Threshold 값", 0, 255, 128)
+dark_obj = st.sidebar.checkbox("어두운 객체 (밝은 배경)", value=True)
+fill_holes = st.sidebar.checkbox("객체 내부 구멍 채우기", value=True)
+min_area = st.sidebar.slider("최소 면적 (pixel) 미만 제거", 0, 5000, 2000, step=50)
 cmap_label = st.sidebar.selectbox("Label colormap", ["Spectral_r", "nipy_spectral", "tab20", "viridis"], index=0)
 
 if uploaded is None:
@@ -31,12 +34,6 @@ if uploaded is None:
 @st.cache_data(show_spinner=False)
 def denoise(f: np.ndarray, k: int) -> np.ndarray:
     return signal.medfilt2d(f, k)
-
-
-@st.cache_data(show_spinner=False)
-def label_mask(mask: np.ndarray):
-    labels, nums = nd.label(mask)
-    return labels, nums
 
 
 def show_image(img, title, cmap="gray", colorbar=False, figsize=(5, 5)):
@@ -62,10 +59,24 @@ f = np.array(I)
 f_denoised = denoise(f, kernel_size)
 
 # ---------------------------------------------------------------
-# 3. Thresholding + Labeling (객체 수를 맨 위에 표시하기 위해 먼저 계산)
+# 3. Thresholding + 후처리 + Labeling
 # ---------------------------------------------------------------
-f_mask = f_denoised > th_val
-labels, nums = label_mask(f_mask)
+# 객체가 어두우면 th 이하를 객체로, 밝으면 th 초과를 객체로
+f_mask_raw = (f_denoised <= th_val) if dark_obj else (f_denoised > th_val)
+
+# 객체 안쪽의 밝은 반점(구멍)을 채워서 하나의 객체로 만들기
+f_mask = nd.binary_fill_holes(f_mask_raw) if fill_holes else f_mask_raw
+
+labels0, nums0 = nd.label(f_mask)
+
+# 최소 면적 미만(잡음, 모서리에 잘린 조각 등) 제거 후 label을 1..N으로 재정렬
+labels = np.zeros_like(labels0)
+nums = 0
+for i in range(1, nums0 + 1):
+    region = labels0 == i
+    if region.sum() >= min_area:
+        nums += 1
+        labels[region] = nums
 
 # 최상단 객체 수 표시
 count_placeholder.metric("검출된 객체 수 (object count)", int(nums))
@@ -92,14 +103,16 @@ st.pyplot(fig)
 plt.close(fig)
 
 st.subheader("3. 이진화 / 레이블링")
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 with c1:
-    show_image(f_mask, f"Binary mask (th={th_val})")
+    show_image(f_mask_raw, f"Binary mask (th={th_val})")
 with c2:
+    show_image(f_mask, "After hole filling")
+with c3:
     show_image(labels, f"Labeled components ({nums}개)", cmap=cmap_label)
 
 if nums == 0:
-    st.warning("검출된 component가 없습니다. Threshold 값을 낮춰보세요.")
+    st.warning("검출된 component가 없습니다. Threshold 값이나 최소 면적을 조절하세요.")
     st.stop()
 
 # ---------------------------------------------------------------
