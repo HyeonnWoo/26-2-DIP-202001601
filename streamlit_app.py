@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as signal
@@ -7,8 +6,10 @@ from PIL import Image
 import streamlit as st
  
 st.set_page_config(page_title="Image Segmentation App", layout="wide")
-st.title("메디안 필터 + 임계값 + Connected Component 분석")
- 
+st.title("Homework 6 박현우 : Object Counting")
+
+count_placeholder = st.empty()
+
 # ---------------------------------------------------------------
 # Sidebar: 입력 및 파라미터
 # ---------------------------------------------------------------
@@ -83,9 +84,11 @@ plt.close(fig)
 # ---------------------------------------------------------------
 # 4. Thresholding + Labeling
 # ---------------------------------------------------------------
+count_placeholder.metric("검출된 객체 수 (object count)", int(nums))
+
 f_mask = f_denoised > th_val
 labels, nums = label_mask(f_mask)
- 
+
 st.subheader("3. 이진화 / 레이블링")
 c1, c2 = st.columns(2)
 with c1:
